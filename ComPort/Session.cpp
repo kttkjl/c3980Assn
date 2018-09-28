@@ -10,6 +10,12 @@ struct sessionHandles {
 HANDLE initPort(LPCTSTR port_name, HWND windowHandle) {
 	// Init configs
 	COMMCONFIG cc;
+	COMMTIMEOUTS timeouts = { 0 };
+	timeouts.ReadIntervalTimeout = 50;
+	timeouts.ReadTotalTimeoutConstant = 50;
+	timeouts.ReadTotalTimeoutMultiplier = 50;
+	timeouts.WriteTotalTimeoutConstant = 50;
+	timeouts.WriteTotalTimeoutMultiplier = 10;
 	cc.dwSize = sizeof(COMMCONFIG);
 	cc.wVersion = 0x100;
 	// Create the port
@@ -17,11 +23,11 @@ HANDLE initPort(LPCTSTR port_name, HWND windowHandle) {
 	// BOOL SetupComm(HANDLE hCommDev, DWORD cbInQueue, DWORD cbOutQueue);
 	if (portHandle != INVALID_HANDLE_VALUE) {
 		// Init port
-		if (SetupComm(portHandle, 4, 4)) {
+		if (SetupComm(portHandle, 8, 8)) {
 			// Config for the port
 			GetCommConfig(portHandle, &cc, &cc.dwSize);
 			// Connect the port
-			if (CommConfigDialog(port_name, windowHandle, &cc)) {
+			if (CommConfigDialog(port_name, windowHandle, &cc) && SetCommTimeouts(portHandle, &timeouts)) {
 				// Pressed OK, nothing broke
 				// initConnect(portHandle);
 				OutputDebugStringA("Setup success");
@@ -43,19 +49,23 @@ HANDLE initPort(LPCTSTR port_name, HWND windowHandle) {
 // Function that handles threads for this module
 DWORD WINAPI listenThreadHandler(LPVOID sh)
 {
-	char buffer[2];
-	DWORD dwBytesWritten;
+	char buffer;
+	char serialBuffer[256];
+	//DWORD dwBytesWritten;
 	DWORD dwBytesRead;
-	sessionHandles sHand = *reinterpret_cast<sessionHandles*>(sh);
-	HDC hdc = GetDC(sHand.wndHnd);
-	do
-	{
-		ReadFile(sHand.portHnd, &buffer, sizeof(buffer), &dwBytesRead, NULL);
+	//sessionHandles sHand = *reinterpret_cast<sessionHandles*>(sh);
+	sessionHandles * sHand = (sessionHandles * ) sh;
+	HDC hdc = GetDC(sHand -> wndHnd);
+	while(true) {
+		ReadFile(sHand -> portHnd, &buffer, sizeof(buffer), &dwBytesRead, NULL);
+
 		if (dwBytesRead) {
-			TextOut(hdc, 0, 0, buffer, 2);
+			//TextOut(hdc, 0, 0, &buffer, 2);
 			OutputDebugString("Reading thread");
+		} else {
+			GetLastError();
 		}
-	} while (true);
+	}
 	return 0;
 }
 
